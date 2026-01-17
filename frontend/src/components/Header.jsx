@@ -14,8 +14,8 @@ const Header = () => {
   const navigation = [
     { name: 'Home', href: '/', icon: Home },
     { name: 'Reports', href: '/dashboard/User', icon: FileText },
-    { name: 'Analytics', href: '/admin/analytics', icon: PlusCircle },
-    { name: 'Ambulance', href: '/ambulance', icon: BarChart },
+    
+   
   ];
 
   const handleLogout = async () => {
