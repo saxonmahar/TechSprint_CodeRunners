@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Camera, Phone, X, Check, Upload } from "lucide-react";
 import CloudinaryUploadWidget from "../components/CloudinaryWidget";
-import GoogleMap from "../components/GoogleMap";
+import { submitAccidentReport } from "../services/accidentReport";
 
+import GoogleMap from "../components/GoogleMap";
 
 const SimpleReportForm = () => {
   const [formData, setFormData] = useState({
@@ -64,19 +64,21 @@ const SimpleReportForm = () => {
   /* ------------------ Submit ------------------ */
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!location.lat || !location.lng) {
-      alert("Location required");
+      alert("Location is required to submit the report");
       return;
     }
 
     setIsSubmitting(true);
 
     const payload = {
-      description: formData.description,
-      phoneNumber: formData.contactNumber,
+      description: formData.description.trim(),
+      phoneNumber: formData.contactNumber.trim(),
       location: {
         latitude: location.lat,
         longitude: location.lng,
+        address: location.address,
         source: "gps",
       },
       images: uploadedImages.map((img) => ({
@@ -87,12 +89,15 @@ const SimpleReportForm = () => {
     };
 
     try {
-      await submitReport(payload);
+      const res = await submitAccidentReport(payload);
+
       alert("Report submitted successfully");
+
+      // Reset state
       setFormData({ description: "", contactNumber: "" });
       setUploadedImages([]);
-    } catch (err) {
-      alert("Failed to submit report");
+    } catch (error) {
+      alert(error.message || "Failed to submit report");
     } finally {
       setIsSubmitting(false);
     }
@@ -104,7 +109,6 @@ const SimpleReportForm = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white p-4">
       <div className="max-w-6xl mx-auto">
-
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
@@ -116,19 +120,15 @@ const SimpleReportForm = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
           {/* LEFT COLUMN */}
           <div className="lg:col-span-2 space-y-6">
-
             {/* Upload Section */}
             <div className="bg-white border rounded-xl p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
                 <Camera className="text-blue-600" />
                 <div>
                   <h2 className="font-semibold">Upload Photos</h2>
-                  <p className="text-sm text-gray-500">
-                    Max 5 clear photos
-                  </p>
+                  <p className="text-sm text-gray-500">Max 5 clear photos</p>
                 </div>
               </div>
 
@@ -193,7 +193,6 @@ const SimpleReportForm = () => {
 
           {/* RIGHT COLUMN */}
           <div className="space-y-6">
-
             {/* Map */}
             <div className="bg-white border rounded-xl p-4 shadow-sm">
               <GoogleMap />
@@ -215,7 +214,6 @@ const SimpleReportForm = () => {
 
               <p className="text-xs text-center mt-4 text-gray-600">
                 <span className="text-red-600 font-semibold">Emergency?</span>{" "}
- 
                 Call 100 / 102 immediately
               </p>
             </div>

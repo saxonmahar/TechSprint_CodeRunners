@@ -1,14 +1,14 @@
 const Accident = require("../model/accidentSchema");
 
-const createAccidentController = async (req, res) => {
+const createAccidentController = async (req, res, next) => {
   try {
-    const { phoneNumber, description, location, images } = req.body;
+    const { phoneNumber, description, location, images } = req.validatedBody;
 
     const accident = await Accident.create({
       phoneNumber,
       description,
       location,
-      images: images || [],
+      images: images ?? [],
     });
 
     return res.status(201).json({
@@ -21,12 +21,9 @@ const createAccidentController = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({
-      statusCode: 500,
-      message: "Internal server error",
-      data: null,
-    });
+    next(error);
   }
 };
 
 module.exports = { createAccidentController };
+

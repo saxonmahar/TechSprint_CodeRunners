@@ -9,9 +9,10 @@ const accidentSchema = new mongoose.Schema(
     },
 
     description: {
-      type: String, 
-      minlength: 10,
-      maxlength: 1000,
+      type: String,
+      required: true,
+      minlength: 3,
+      maxlength: 500,
     },
 
     location: {
@@ -30,7 +31,12 @@ const accidentSchema = new mongoose.Schema(
       source: {
         type: String,
         enum: ["gps", "manual"],
-        default: "gps",
+        required: true,
+      },
+      address: {
+        type: String,
+        trim: true,
+        maxlength: 255,
       },
     },
 
@@ -44,16 +50,13 @@ const accidentSchema = new mongoose.Schema(
           type: String,
           required: true,
         },
-        format: {
-          type: String,
-          enum: ["jpg", "jpeg", "png", "webp", "mp4"],
-        },
+        format: String,
       },
     ],
 
     status: {
       type: String,
-      enum: ["reported", "in-progress", "resolved"],
+      enum: ["reported", "verified", "rejected"],
       default: "reported",
     },
   },
