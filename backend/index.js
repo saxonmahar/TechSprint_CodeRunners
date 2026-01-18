@@ -9,6 +9,8 @@ const accidentRouter = require("./routes/accidentRouter");
 const userRoutes = require("./routes/userRoutes");
 const initSocket = require("./sockets/index");
 const DataBaseConnection = require("./config/dbConfig");
+const ambulanceRoutes = require("./routes/ambulance");
+
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -36,6 +38,7 @@ app.get("/", (req, res) => {
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/accident", accidentRouter);
 app.use("/api/v1/user", userRoutes);
+app.use("/api/ambulance", ambulanceRoutes);
 
 // CREATE HTTP SERVER
 const server = http.createServer(app);

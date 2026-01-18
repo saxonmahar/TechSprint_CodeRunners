@@ -8,10 +8,13 @@ export const initSocket = (token) => {
     socket = io("http://localhost:3000", {
       withCredentials: true,
       transports: ["websocket"],
-      auth: { token }, // optional if server requires
+      auth: { token },
     });
   }
   return socket;
 };
 
 export const getSocket = () => socket;
+
+// Default export for convenience
+export default socket;

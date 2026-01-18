@@ -1,7 +1,5 @@
 const Accident = require("../model/accidentSchema");
-const {
-  handleAccidentAccepted,
-} = require("../services/accident-accept.service");
+const { handleAccidentAccepted } = require("../services/accident-accept.service");
 
 /**
  * PATCH /api/v1/admin/accidents/:id/status
@@ -36,6 +34,17 @@ const updateAccidentStatusController = async (req, res, next) => {
     // 🔔 Trigger WhatsApp only when verified
     if (status === "verified") {
       handleAccidentAccepted(accident).catch(console.error);
+
+      // 🚨 Emit to connected ambulances via Socket.IO
+      if (global.io) {
+        // Optionally, you can send to a specific zone: io.to(`zone-${accident.zoneId}`).emit(...)
+        global.io.emit("new-emergency", {
+          accidentId: accident._id,
+          location: accident.location,
+          description: accident.description,
+          time: accident.createdAt,
+        });
+      }
     }
 
     return res.status(200).json({
