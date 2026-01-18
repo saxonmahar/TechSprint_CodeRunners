@@ -1,15 +1,16 @@
 const Accident = require("../model/accidentSchema");
+const {
+  handleAccidentAccepted,
+} = require("../services/accident-accept.service");
 
 /**
  * PATCH /api/v1/admin/accidents/:id/status
- * Update accident status (verified / rejected)
  */
 const updateAccidentStatusController = async (req, res, next) => {
   try {
-   const { id } = req.params;
+    const { id } = req.params;
     const status = req.body.status || req.query.status;
 
-    // safety check (extra layer)
     if (!["verified", "rejected"].includes(status)) {
       return res.status(400).json({
         statusCode: 400,
@@ -32,6 +33,11 @@ const updateAccidentStatusController = async (req, res, next) => {
       });
     }
 
+    // 🔔 Trigger WhatsApp only when verified
+    if (status === "verified") {
+      handleAccidentAccepted(accident).catch(console.error);
+    }
+
     return res.status(200).json({
       statusCode: 200,
       message: `Accident ${status} successfully`,
@@ -46,4 +52,4 @@ const updateAccidentStatusController = async (req, res, next) => {
   }
 };
 
-module.exports = updateAccidentStatusController
+module.exports = updateAccidentStatusController;

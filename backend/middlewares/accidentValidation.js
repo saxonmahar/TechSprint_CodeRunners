@@ -5,19 +5,48 @@ const accidentSchema = Joi.object({
   phoneNumber: Joi.string()
     .trim()
     .pattern(/^[0-9+\-]{7,15}$/)
-    .required(),
+    .required()
+    .messages({
+      "string.empty": "Phone number is required",
+      "string.pattern.base": "Phone number format is invalid",
+    }),
 
   description: Joi.string()
     .trim()
     .min(3)
     .max(500)
-    .required(),
+    .required()
+    .messages({
+      "string.empty": "Description is required",
+      "string.min": "Description must be at least 3 characters",
+      "string.max": "Description must not exceed 500 characters",
+    }),
 
   location: Joi.object({
-    latitude: Joi.number().min(-90).max(90).required(),
-    longitude: Joi.number().min(-180).max(180).required(),
-    source: Joi.string().valid("gps", "manual").required(),
-    address: Joi.string().trim().max(255).optional(),
+    latitude: Joi.number()
+      .min(-90)
+      .max(90)
+      .required()
+      .messages({
+        "number.base": "Latitude must be a number",
+      }),
+
+    longitude: Joi.number()
+      .min(-180)
+      .max(180)
+      .required()
+      .messages({
+        "number.base": "Longitude must be a number",
+      }),
+
+    source: Joi.string()
+      .valid("gps", "manual")
+      .required(),
+
+    address: Joi.string()
+      .trim()
+      .max(255)
+      .optional(),
   }).required(),
 
   images: Joi.array()
@@ -29,11 +58,12 @@ const accidentSchema = Joi.object({
       })
     )
     .max(5)
-    .optional(),
-}).options({
-  abortEarly: false,
-  allowUnknown: false,
-});
+    .default([]),
+})
+  .options({
+    abortEarly: false,
+    stripUnknown: true, // 🔐 removes unexpected fields
+  });
 
 /* ------------------ Middleware ------------------ */
 const validateAccidentReport = (req, res, next) => {
@@ -42,12 +72,15 @@ const validateAccidentReport = (req, res, next) => {
   if (error) {
     return res.status(400).json({
       statusCode: 400,
-      message: "Validation error",
-      data: error.details.map((err) => err.message),
+      message: "Validation failed",
+      errors: error.details.map((e) => ({
+        field: e.path.join("."),
+        message: e.message,
+      })),
     });
   }
 
-  // attach validated data
+  // attach sanitized payload
   req.validatedBody = value;
   next();
 };

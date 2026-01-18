@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const accidentSchema = new mongoose.Schema(
   {
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     phoneNumber: {
       type: String,
       required: true,
@@ -42,14 +48,8 @@ const accidentSchema = new mongoose.Schema(
 
     images: [
       {
-        url: {
-          type: String,
-          required: true,
-        },
-        public_id: {
-          type: String,
-          required: true,
-        },
+        url: { type: String, required: true },
+        public_id: { type: String, required: true },
         format: String,
       },
     ],
@@ -60,7 +60,9 @@ const accidentSchema = new mongoose.Schema(
       default: "reported",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-module.exports = mongoose.model("Accident", accidentSchema);
+module.exports =
+  mongoose.models.Accident ||
+  mongoose.model('Accident', accidentSchema);
