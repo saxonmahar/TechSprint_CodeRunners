@@ -1,10 +1,9 @@
 import axiosInstance from "../utils/axios.js";
 
-
 export const getUserProfile = async () => {
   try {
     const response = await axiosInstance.get("/user/profile");
-    return response.data;
+    return response.data.data; // 👈 return actual profile object
   } catch (error) {
     const errorMessage =
       error.response?.data?.message ||
@@ -13,12 +12,10 @@ export const getUserProfile = async () => {
   }
 };
 
-
-
 export const getUserReports = async () => {
   try {
     const response = await axiosInstance.get("/accident/my-reports");
-    return response.data;
+    return response.data.data; // 👈 return ARRAY
   } catch (error) {
     const errorMessage =
       error.response?.data?.message ||
@@ -26,4 +23,3 @@ export const getUserReports = async () => {
     throw new Error(errorMessage);
   }
 };
-

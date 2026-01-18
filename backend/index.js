@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const path = require("path");
 const authRouter = require("./routes/authRoutes");
 const accidentRouter = require("./routes/accidentRouter")
+const userRoutes = require("./routes/userRoutes")
 require("dotenv").config();
 
 const dbconenction = require("./config/dbConfig");
@@ -32,6 +33,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/accident",accidentRouter)
+app.use("/api/v1/user",userRoutes)
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
