@@ -1,474 +1,487 @@
-// src/components/AdminDashboard.jsx
 import { useState, useEffect } from "react";
 import {
-  Shield, FileText, MapPin, Clock, Search,
-  CheckCircle, XCircle, Users, AlertCircle,
-  Download, RefreshCw, Filter
+  Shield,
+  FileText,
+  MapPin,
+  Clock,
+  Search,
+  CheckCircle,
+  XCircle,
+  Users,
+  AlertCircle,
+  Download,
+  RefreshCw,
+  Navigation,
 } from "lucide-react";
 
-// Import the service functions
 import {
   getAllAccidentReports,
   acceptReport,
-  rejectReport
-} from '../services/admin';
+  rejectReport,
+} from "../services/accidentReport";
+
+// Import the SmallMapPreview component
+import SmallMapPreview from "../components/SmallMapPreview";
 
 const AdminDashboard = () => {
-  // States
   const [reports, setReports] = useState([]);
   const [filteredReports, setFilteredReports] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
-  // Calculate stats from reports
-  const calculateStats = () => {
-    const total = reports.length;
-    const pending = reports.filter(r => r.status === 'reported').length;
-    const accepted = reports.filter(r => r.status === 'accepted').length;
-    const rejected = reports.filter(r => r.status === 'rejected').length;
-    
-    return { total, pending, accepted, rejected };
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  /* ---------------- STATS ---------------- */
+  const stats = {
+    total: reports.length,
+    pending: reports.filter((r) => r.status === "reported").length,
+    accepted: reports.filter((r) => r.status === "accepted").length,
+    rejected: reports.filter((r) => r.status === "rejected").length,
   };
 
-  const stats = calculateStats();
-
-  // Fetch reports from API using service function
+  /* ---------------- FETCH ---------------- */
   const fetchReports = async () => {
-    setLoading(true);
-    setError(null);
-    
     try {
-      const response = await getAllAccidentReports();
-      
-      if (response.data && Array.isArray(response.data)) {
-        // Add title based on description or location
-        const reportsWithTitle = response.data.map(report => ({
-          ...report,
-          title: report.description 
-            ? report.description.substring(0, 50) + (report.description.length > 50 ? '...' : '')
-            : `Report from ${report.phoneNumber}`
-        }));
-        
-        setReports(reportsWithTitle);
-        setFilteredReports(reportsWithTitle);
-      } else {
-        setReports([]);
-        setFilteredReports([]);
-      }
-      
+      setLoading(true);
+      const res = await getAllAccidentReports();
+
+      const enriched = res.data.map((r) => ({
+        ...r,
+        title: r.description
+          ? r.description.slice(0, 50) + (r.description.length > 50 ? "..." : "")
+          : `Report from ${r.phoneNumber}`,
+      }));
+
+      setReports(enriched);
+      setFilteredReports(enriched);
     } catch (err) {
-      console.error('Error fetching reports:', err);
-      setError(err.message);
+      setError("Failed to fetch reports");
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle accept report using service function
-  const handleAccept = async (reportId) => {
-    try {
-      await acceptReport(reportId);
-      
-      // Update local state
-      setReports(prev => prev.map(report =>
-        report._id === reportId
-          ? { ...report, status: 'accepted' }
-          : report
-      ));
-      
-      alert('Report accepted successfully!');
-      
-    } catch (err) {
-      console.error('Error accepting report:', err);
-      alert(err.message || 'Failed to accept report');
-    }
-  };
-
-  // Handle reject report using service function
-  const handleReject = async (reportId) => {
-    try {
-      await rejectReport(reportId);
-      
-      // Update local state
-      setReports(prev => prev.map(report =>
-        report._id === reportId
-          ? { ...report, status: 'rejected' }
-          : report
-      ));
-      
-      alert('Report rejected successfully!');
-      
-    } catch (err) {
-      console.error('Error rejecting report:', err);
-      alert(err.message || 'Failed to reject report');
-    }
-  };
-
-  // Handle export
-  const handleExport = () => {
-    const data = JSON.stringify(filteredReports, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `accident-reports-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    alert('Reports exported successfully!');
-  };
-
-  // Filter reports based on search and status
-  useEffect(() => {
-    let filtered = [...reports];
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(report => report.status === statusFilter);
-    }
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(report =>
-        report.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.phoneNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.location?.address?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredReports(filtered);
-  }, [searchTerm, statusFilter, reports]);
-
-  // Fetch reports on component mount
   useEffect(() => {
     fetchReports();
   }, []);
 
-  // Helper function to get status color
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'accepted': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      case 'reported': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+  /* ---------------- FILTER ---------------- */
+  useEffect(() => {
+    let data = [...reports];
+
+    if (statusFilter !== "all") {
+      data = data.filter((r) => r.status === statusFilter);
+    }
+
+    if (searchTerm) {
+      data = data.filter(
+        (r) =>
+          r.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          r.phoneNumber?.includes(searchTerm) ||
+          r.location?.address?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredReports(data);
+  }, [searchTerm, statusFilter, reports]);
+
+  /* ---------------- ACTIONS ---------------- */
+  const handleAccept = async (id) => {
+    try {
+      await acceptReport(id);
+      setReports((prev) =>
+        prev.map((r) => (r._id === id ? { ...r, status: "accepted" } : r))
+      );
+      if (selectedReport && selectedReport._id === id) {
+        setSelectedReport(prev => ({ ...prev, status: "accepted" }));
+      }
+      alert("Report accepted successfully!");
+    } catch (err) {
+      console.error("Error accepting report:", err);
+      alert(err.message || "Failed to accept report");
     }
   };
 
-  // Helper function to get status icon
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'accepted': return <CheckCircle className="w-4 h-4" />;
-      case 'rejected': return <XCircle className="w-4 h-4" />;
-      case 'reported': return <AlertCircle className="w-4 h-4" />;
-      default: return null;
+  const handleReject = async (id) => {
+    try {
+      await rejectReport(id);
+      setReports((prev) =>
+        prev.map((r) => (r._id === id ? { ...r, status: "rejected" } : r))
+      );
+      if (selectedReport && selectedReport._id === id) {
+        setSelectedReport(prev => ({ ...prev, status: "rejected" }));
+      }
+      alert("Report rejected successfully!");
+    } catch (err) {
+      console.error("Error rejecting report:", err);
+      alert(err.message || "Failed to reject report");
     }
   };
 
-  // Format date
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+  /* ---------------- EXPORT ---------------- */
+  const handleExport = () => {
+    const data = JSON.stringify(filteredReports, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `accident-reports-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    alert("Reports exported successfully!");
   };
 
+  /* ---------------- HELPERS ---------------- */
+  const statusColor = (status) =>
+    ({
+      accepted: "bg-gradient-to-r from-green-100 to-green-50 border-l-4 border-green-500",
+      rejected: "bg-gradient-to-r from-red-100 to-red-50 border-l-4 border-red-500",
+      reported: "bg-gradient-to-r from-yellow-100 to-yellow-50 border-l-4 border-yellow-500",
+    }[status]);
+
+  const formatDate = (d) => new Date(d).toLocaleString();
+
+  /* ---------------- UI ---------------- */
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Accident Reports Admin</h1>
-                <p className="text-sm text-gray-500">Manage and review submitted reports</p>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50/50 to-purple-50/50">
+      {/* HEADER */}
+      <header className="bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+              <Shield className="text-white" size={28} />
             </div>
-            
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={fetchReports}
-                disabled={loading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </button>
+            <div>
+              <h1 className="font-bold text-2xl text-white">Accident Reports Admin</h1>
+              <p className="text-blue-100">
+                Manage and verify accident reports
+              </p>
             </div>
           </div>
+          <button
+            onClick={fetchReports}
+            disabled={loading}
+            className="flex items-center gap-2 px-5 py-3 bg-white text-blue-600 rounded-xl hover:bg-blue-50 hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+          >
+            <RefreshCw className={`${loading ? "animate-spin" : ""}`} size={18} />
+            Refresh
+          </button>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Total Reports</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <FileText className="h-8 w-8 text-blue-500" />
+      {/* CONTENT */}
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* STATS CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[
+            ["Total Reports", stats.total, "bg-gradient-to-br from-blue-500 to-blue-600"],
+            ["Pending", stats.pending, "bg-gradient-to-br from-yellow-500 to-orange-500"],
+            ["Accepted", stats.accepted, "bg-gradient-to-br from-green-500 to-emerald-600"],
+            ["Rejected", stats.rejected, "bg-gradient-to-br from-red-500 to-pink-600"],
+          ].map(([label, value, bgClass]) => (
+            <div 
+              key={label} 
+              className={`${bgClass} p-6 rounded-2xl text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}
+            >
+              <p className="text-sm font-medium text-white/90 mb-2">{label}</p>
+              <p className="text-3xl font-bold">{value}</p>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-yellow-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Accepted</p>
-                <p className="text-2xl font-bold text-green-600">{stats.accepted}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500">Rejected</p>
-                <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Search and Filter */}
-        <div className="bg-white rounded-lg p-4 shadow border mb-6">
+        {/* SEARCH & FILTERS */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100">
           <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search reports..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-3.5 text-blue-400" size={20} />
+              <input
+                className="pl-12 w-full border-2 border-blue-100 rounded-xl p-3.5 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition-all bg-blue-50/50"
+                placeholder="Search reports by description, phone, or address..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            
-            <div className="flex space-x-4">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Status</option>
-                <option value="reported">Pending</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-              </select>
-              
-              <button
-                onClick={handleExport}
-                className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" />
-                <span>Export</span>
-              </button>
-            </div>
+
+            <select
+              className="border-2 border-purple-100 rounded-xl p-3.5 focus:border-purple-400 focus:ring-2 focus:ring-purple-200 outline-none transition-all bg-purple-50/50"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All Status</option>
+              <option value="reported">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <button
+              onClick={handleExport}
+              className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-lg"
+            >
+              <Download size={18} /> Export
+            </button>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Reports List */}
-          <div className="lg:col-span-2">
+        {/* MAIN CONTENT */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* REPORTS LIST */}
+          <div className="lg:col-span-2 space-y-5">
             {loading ? (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <RefreshCw className="h-12 w-12 text-blue-500 animate-spin mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900">Loading reports...</h3>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 text-center border border-gray-200 shadow-lg">
+                <RefreshCw className="h-16 w-16 text-blue-500 animate-spin mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Loading reports...
+                </h3>
               </div>
             ) : error ? (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900">Error loading reports</h3>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 text-center border border-gray-200 shadow-lg">
+                <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Error loading reports
+                </h3>
                 <p className="text-gray-500 mb-4">{error}</p>
                 <button
                   onClick={fetchReports}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300"
                 >
                   Try Again
                 </button>
               </div>
             ) : filteredReports.length === 0 ? (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900">No reports found</h3>
-                <p className="text-gray-500">Try adjusting your filters or search terms</p>
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 text-center border border-gray-200 shadow-lg">
+                <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  No reports found
+                </h3>
+                <p className="text-gray-500">
+                  Try adjusting your filters or search terms
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {filteredReports.map((report) => (
-                  <div
-                    key={report._id}
-                    className="bg-white rounded-lg p-4 shadow border hover:shadow-md cursor-pointer"
-                    onClick={() => setSelectedReport(report)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-bold text-gray-900">
-                            {report.title || `Report #${report._id.substring(0, 8)}`}
-                          </h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}>
-                            <span className="flex items-center space-x-1">
-                              {getStatusIcon(report.status)}
-                              <span>{report.status}</span>
-                            </span>
-                          </span>
-                        </div>
-
-                        {report.description && (
-                          <p className="text-gray-600 mb-3">{report.description}</p>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                          <span className="flex items-center">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {report.location?.address || `Lat: ${report.location?.latitude}, Lng: ${report.location?.longitude}`}
-                          </span>
-                          <span className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            {formatDate(report.createdAt)}
-                          </span>
-                          <span className="flex items-center">
-                            <Users className="h-4 w-4 mr-1" />
-                            {report.phoneNumber}
-                          </span>
-                        </div>
+              filteredReports.map((r) => (
+                <div
+                  key={r._id}
+                  onClick={() => setSelectedReport(r)}
+                  className={`bg-white rounded-2xl p-5 cursor-pointer border-2 border-gray-100 hover:border-blue-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${
+                    selectedReport?._id === r._id ? 'border-blue-400 ring-2 ring-blue-100' : ''
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${statusColor(r.status)}`}>
+                          {r.status}
+                        </span>
+                        <span className="text-sm text-gray-500 flex items-center gap-1">
+                          <Clock size={14} /> {formatDate(r.createdAt)}
+                        </span>
                       </div>
-
-                      {report.status === 'reported' && (
-                        <div className="flex space-x-2 ml-4">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAccept(report._id);
-                            }}
-                            className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleReject(report._id);
-                            }}
-                            className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
-                          >
-                            Reject
-                          </button>
+                      
+                      <h3 className="font-bold text-gray-900 text-lg mb-2">{r.title}</h3>
+                      <p className="text-gray-600 mb-4">{r.description}</p>
+                      
+                      <div className="flex flex-wrap gap-5 text-sm text-gray-500">
+                        <span className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg">
+                          <MapPin size={14} className="text-blue-500" />
+                          {r.location?.address || "No address"}
+                        </span>
+                        <span className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg">
+                          <Users size={14} className="text-purple-500" />
+                          {r.phoneNumber}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* RIGHT SIDE WITH MAP AND ACTIONS */}
+                    <div className="flex flex-col items-end gap-3 ml-4">
+                      {/* Small Map Preview */}
+                      {r.location?.longitude && r.location?.latitude ? (
+                        <div className="w-48 h-32 mb-2">
+                          <SmallMapPreview
+                            latitude={r.location.latitude}
+                            longitude={r.location.longitude}
+                            address={r.location?.address || ""}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-48 h-32 rounded-lg border border-gray-300 bg-gray-100 flex flex-col items-center justify-center p-3">
+                          <Navigation className="w-6 h-6 text-gray-400 mb-2" />
+                          <span className="text-xs text-gray-500 text-center">No location data</span>
                         </div>
                       )}
+                      
+                      {/* Status badge and action buttons */}
+                      <div className="flex flex-col items-end gap-2">
+                        {r.status === "reported" && (
+                          <div className="flex gap-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAccept(r._id);
+                              }}
+                              className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl text-sm hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-lg flex items-center gap-2"
+                            >
+                              <CheckCircle size={16} />
+                              Accept
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReject(r._id);
+                              }}
+                              className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl text-sm hover:from-red-600 hover:to-red-700 transition-all duration-300 hover:shadow-lg flex items-center gap-2"
+                            >
+                              <XCircle size={16} />
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
           </div>
 
-          {/* Report Details Sidebar */}
+          {/* DETAILS SIDEBAR */}
           <div>
             {selectedReport ? (
-              <div className="bg-white rounded-lg p-6 shadow border">
-                <h2 className="font-bold text-gray-900 mb-4">Report Details</h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500">Description</h4>
-                    <p className="mt-1 p-2 bg-gray-50 rounded">
-                      {selectedReport.description || 'No description provided'}
-                    </p>
+              <div className="bg-white rounded-2xl p-6 space-y-6 sticky top-6 shadow-xl border border-gray-100">
+                <div className="pb-4 border-b border-gray-200">
+                  <h2 className="font-bold text-2xl text-gray-800">Report Details</h2>
+                  <p className="text-sm text-gray-500 mt-1">ID: {selectedReport._id}</p>
+                </div>
+
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 p-4 rounded-xl border border-blue-100">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <FileText size={16} /> Description
+                  </h3>
+                  <p className="text-gray-700">{selectedReport.description || "No description provided"}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-r from-green-50 to-green-100/50 p-4 rounded-xl border border-green-100">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Status</h3>
+                    <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${statusColor(selectedReport.status)}`}>
+                      {selectedReport.status}
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                      <span className={`mt-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(selectedReport.status)}`}>
-                        {selectedReport.status}
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500">Phone Number</h4>
-                      <p className="mt-1 font-medium">{selectedReport.phoneNumber}</p>
-                    </div>
+                  
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100/50 p-4 rounded-xl border border-purple-100">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Phone Number</h3>
+                    <p className="font-bold text-gray-900">{selectedReport.phoneNumber}</p>
                   </div>
+                </div>
 
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500">Location</h4>
-                    <div className="mt-1 space-y-1">
-                      <p className="font-medium">{selectedReport.location?.address || 'No address'}</p>
-                      <p className="text-sm text-gray-500">
-                        Lat: {selectedReport.location?.latitude}, Lng: {selectedReport.location?.longitude}
-                      </p>
+                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100/50 p-4 rounded-xl border border-yellow-100">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <MapPin size={16} /> Location
+                  </h3>
+                  <p className="font-medium text-gray-900 mb-1">{selectedReport.location?.address || "No address"}</p>
+                  {selectedReport.location?.latitude && selectedReport.location?.longitude ? (
+                    <div className="mt-3 h-64 rounded-lg overflow-hidden border border-gray-300">
+                      <SmallMapPreview
+                        latitude={selectedReport.location.latitude}
+                        longitude={selectedReport.location.longitude}
+                        address={selectedReport.location?.address || ""}
+                        zoom={15}
+                      />
                     </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500">Submitted</h4>
-                    <p className="mt-1">{formatDate(selectedReport.createdAt)}</p>
-                  </div>
-
-                  {selectedReport.images && selectedReport.images.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-500 mb-2">Images</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {selectedReport.images.map((img, index) => (
-                          <img
-                            key={index}
-                            src={img.url}
-                            alt={`Report ${selectedReport._id} - ${index + 1}`}
-                            className="rounded-lg object-cover w-full h-24 border"
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedReport.status === 'reported' && (
-                    <div className="flex space-x-3 pt-4 border-t">
-                      <button
-                        onClick={() => handleAccept(selectedReport._id)}
-                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                      >
-                        Accept Report
-                      </button>
-                      <button
-                        onClick={() => handleReject(selectedReport._id)}
-                        className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                      >
-                        Reject Report
-                      </button>
-                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No coordinates available</p>
                   )}
                 </div>
+
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100/50 p-4 rounded-xl border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    <Clock size={16} /> Submitted
+                  </h3>
+                  <p className="text-gray-900">{formatDate(selectedReport.createdAt)}</p>
+                </div>
+
+                {/* IMAGES */}
+                {selectedReport.images?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Accident Images</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                      {selectedReport.images.map((img) => (
+                        <div
+                          key={img._id}
+                          onClick={() => setPreviewImage(img.url)}
+                          className="border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 hover:shadow-lg transition-all duration-300 overflow-hidden bg-gray-50"
+                        >
+                          <img
+                            src={img.url}
+                            alt="Accident"
+                            className="w-full h-48 object-cover"
+                          />
+                          <p className="text-xs text-gray-500 p-3 bg-white/80 backdrop-blur-sm">Click to enlarge image</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ACTION BUTTONS */}
+                {selectedReport.status === "reported" && (
+                  <div className="flex gap-4 pt-6 border-t border-gray-200">
+                    <button
+                      onClick={() => handleAccept(selectedReport._id)}
+                      className="flex-1 px-6 py-3.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 hover:shadow-xl font-bold flex items-center justify-center gap-3"
+                    >
+                      <CheckCircle size={20} />
+                      Accept Report
+                    </button>
+                    <button
+                      onClick={() => handleReject(selectedReport._id)}
+                      className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 hover:shadow-xl font-bold flex items-center justify-center gap-3"
+                    >
+                      <XCircle size={20} />
+                      Reject Report
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="bg-white rounded-lg p-6 shadow border">
-                <div className="text-center">
-                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="font-semibold text-gray-900 mb-2">Select a Report</h3>
-                  <p className="text-gray-500">Click on any report to view detailed information</p>
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl p-8 text-center border-2 border-dashed border-blue-200 shadow-lg">
+                <div className="p-5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                  <AlertCircle className="text-white" size={32} />
                 </div>
+                <p className="font-bold text-gray-900 text-lg mb-2">Select a Report</p>
+                <p className="text-gray-600">
+                  Click on any report from the list to view detailed information
+                </p>
               </div>
             )}
           </div>
         </div>
       </div>
+
+      {/* IMAGE MODAL */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="relative max-w-6xl max-h-[90vh]">
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="object-contain rounded-2xl shadow-2xl"
+            />
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-4 right-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full p-3 hover:from-red-600 hover:to-red-700 transition-all duration-300"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
